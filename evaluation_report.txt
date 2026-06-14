@@ -1,0 +1,12 @@
+=== Tomato Irrigation Status Model - Evaluation Report ===
+Accuracy:      99.30%
+Precision (Macro): 99.30%
+Recall (Macro):    99.29%
+F1-Score (Macro):  99.29%
+Cohen's Kappa:     0.9907
+
+Confusion Matrix:
+[[1569    5    0    0]
+ [  26 1524    1    0]
+ [   0    8 1525    0]
+ [   0    0    4 1625]]

@@ -1,0 +1,27 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Mac OS
+.DS_Store
+
+# Virtual Environments
+venv/
+env/
+.env
+
+# Dataset
+dataset/
+*.rar
+*.zip
+
+# The Research Paper (User explicitly requested not to push this)
+*.pdf
+
+# Ignore IDE configs but allow the IDE logs directory for the current session? No, ignore IDE stuff.
+.vscode/
+.idea/
+.gemini/
+
+# We WILL allow pushing the .png reports and the best_model.pth so the repo is complete and runnable out of the box.
