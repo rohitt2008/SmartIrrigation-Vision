@@ -25,3 +25,7 @@ dataset/
 .gemini/
 
 # We WILL allow pushing the .png reports and the best_model.pth so the repo is complete and runnable out of the box.
+
+# Ignore cross-validation fold checkpoints and large log files
+*fold*.pth
+*.log
