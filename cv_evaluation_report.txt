@@ -1,6 +1,6 @@
 === Tomato Irrigation Status Model - 5-Fold CV Report ===
-Accuracy:      98.75% ± 0.82%
-Precision (Macro): 98.75% ± 0.82%
-Recall (Macro):    98.74% ± 0.83%
-F1-Score (Macro):  98.74% ± 0.83%
-Cohen's Kappa:     0.9833 ± 0.0110
+Accuracy:          98.75% ± 0.73%
+Precision (Macro): 98.75% ± 0.73%
+Recall (Macro):    98.74% ± 0.74%
+F1-Score (Macro):  98.74% ± 0.74%
+Cohen's Kappa:     0.9833 ± 0.0098

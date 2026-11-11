@@ -1,0 +1,419 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{url}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{Compact Residual Convolutional Neural Network for Multi-Stage Tomato Leaf Water Stress Identification and Explainability}
+
+\author{\IEEEauthorblockN{Rohit Kumar\IEEEauthorrefmark{1}, Research Collaborator\IEEEauthorrefmark{2}}
+\IEEEauthorblockA{\IEEEauthorrefmark{1}Department of Computer Science and Engineering\\
+Institutional Affiliation, City, Country\\
+Email: rohit.research@institution.edu}
+\IEEEauthorblockA{\IEEEauthorrefmark{2}Department of Agricultural and Information Engineering\\
+Institutional Affiliation, City, Country\\
+Email: collaborator@institution.edu}
+}
+
+\maketitle
+
+\begin{abstract}
+Automated monitoring of crop water status is essential for precision irrigation scheduling, preventing drought stress, and conserving freshwater resources. Traditional sensing techniques, such as soil moisture probes and leaf water potential measurements, provide localized point data and are labor-intensive, while hyperspectral aerial imaging involves significant operational expense. In this work, we investigate a streamlined, compact residual convolutional neural network (CNN), designated as \textit{LightResNet}, designed for multi-stage irrigation status identification in tomato (\textit{Solanum lycopersicum}) plants using individual leaf imagery. The network replaces heavy residual stages with four compact blocks employing dual $3 \times 3$ convolutions and dimension-matching $1 \times 1$ skip projections, reducing parameter complexity to 1.24 million parameters (a 94.7\% reduction compared to standard ResNet-50) with a theoretical computational complexity of 0.109~GFLOPs and an average inference latency of 1.66~ms on standard CPU hardware. Evaluated on a benchmark dataset of 20,955 tomato leaf images across four field capacity (FC) regimes---Low Irrigated (LI: 25\% FC), Medium Irrigated (MI: 50\% FC), Highly Irrigated (HI: 75\% FC), and Fully Irrigated (FI: 100\% FC)---the trained model achieves an overall test accuracy of 99.27\%, a macro-averaged F1-score of 99.26\%, a Cohen's Kappa of 0.9902, a Mean Absolute Error (MAE) of 0.0073 class levels, and a Quadratic Weighted Kappa of 0.9935 on 6,287 held-out test samples. A 5-fold cross-validation confirms consistent performance ($98.75\% \pm 0.73\%$). Furthermore, Gradient-weighted Class Activation Mapping (Grad-CAM) is evaluated to examine regional attention patterns, highlighting both foliar focus in drought-stressed classes and boundary limitations in hydrated leaves. The framework provides an efficient, non-destructive diagnostic approach for computer-vision-assisted precision agriculture.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Precision agriculture, plant water stress, lightweight convolutional neural networks, LightResNet, smart irrigation, Grad-CAM, explainable artificial intelligence (XAI).
+\end{IEEEkeywords}
+
+\section{Introduction}
+Freshwater management is one of the most pressing challenges facing global agriculture, which accounts for roughly 70\% of global freshwater withdrawals~\cite{fereres2007deficit}. Cultivated tomato (\textit{Solanum lycopersicum}) is an economically significant horticultural crop that is vulnerable to both water deficit and over-irrigation~\cite{jones2004irrigation, katsoulas2016canopy}. Insufficient moisture triggers cellular flaccidity, limits vegetative expansion, and induces blossom-end rot, whereas excessive irrigation promotes root hypoxia, leaches fertilizers, and increases fungal pathogen susceptibility. Consequently, rapid, non-destructive assessment of plant hydration levels is critical for modern agricultural water conservation.
+
+Conventional irrigation management relies heavily on soil moisture sensors, including time-domain reflectometry (TDR), frequency-domain reflectometry (FDR), and tensiometers. While well-understood, these instruments provide point-source measurements that do not fully capture spatial soil variability, root depth dynamics, or immediate plant physiological demand~\cite{jones2004irrigation}. Conversely, direct physiological indicators (e.g., leaf water potential measured via Scholander pressure chambers) reflect true hydration but are destructive, labor-prohibitive, and incompatible with autonomous greenhouse or field monitoring. While aerial thermal infrared (TIR) and multispectral sensing have shown diagnostic value~\cite{osroosh2016comparison, sun2023evaluation}, adoption remains limited by equipment cost, weather constraints, and calibration overhead.
+
+Computer vision and deep learning offer a non-invasive alternative by analyzing foliar morphometry and color~\cite{kamilaris2018deep, mohanty2016using, chandel2021deep}. Leaves manifest visible symptoms during moisture deprivation, including loss of turgor pressure, blade rolling, petiole sagging, and marginal chlorosis~\cite{zhuang2018identification}. Convolutional Neural Networks (CNNs) can extract discriminative patterns directly from standard RGB imagery without requiring specialized optical sensors.
+
+However, standard vision models present two notable challenges for practical agricultural deployment:
+\begin{enumerate}
+    \item \textbf{Model Complexity}: Widely used architectures, such as standard ResNet-50 (23.59M parameters) and VGG-16 (138.3M parameters)~\cite{he2016deep, simonyan2014very}, have large memory footprints and computational overhead, limiting feasibility on low-power edge platforms such as Raspberry Pi 4 or NVIDIA Jetson Nano.
+    \item \textbf{Interpretability and Artifact Sensitivity}: Deep models can latch onto background noise, illumination changes, or camera framing rather than genuine plant symptoms~\cite{tjoa2020survey}. Verifying model attention is necessary to evaluate reliability in real-world settings.
+\end{enumerate}
+
+To address these considerations, this study examines \textbf{LightResNet}, a compact, 10-layer residual CNN designed for multi-tier tomato leaf water stress classification. The primary contributions of this paper are:
+\begin{itemize}
+    \item \textbf{Compact Architecture}: We utilize a streamlined residual network comprising four lightweight blocks with $1 \times 1$ projection shortcuts, containing \textbf{1,240,948 parameters} ($\sim$4.98~MB storage footprint), with a computational demand of \textbf{0.109~GFLOPs} and a measured single-image CPU latency of \textbf{1.66~ms}.
+    \item \textbf{Multi-Class Stress Evaluation}: We evaluate a 4-tier classification framework corresponding to discrete soil field capacity (FC) levels: Low Irrigated (LI: 25\% FC), Medium Irrigated (MI: 50\% FC), Highly Irrigated (HI: 75\% FC), and Fully Irrigated (FI: 100\% FC).
+    \item \textbf{Empirical Benchmarking and Ordinal Analysis}: Across 20,955 tomato leaf images with a 70/30 stratified split, the network attains \textbf{99.27\% test accuracy}, \textbf{99.27\% macro precision}, \textbf{99.26\% macro recall}, \textbf{0.9902 Cohen's Kappa}, an MAE of \textbf{0.0073 class levels}, and a Quadratic Weighted Kappa of \textbf{0.9935}. A 5-fold cross-validation demonstrates consistent stability ($98.75\% \pm 0.73\%$).
+    \item \textbf{Comparative Assessment with Published Baselines}: We benchmark results directly against prior evaluations on this dataset by Shahi et al.~\cite{shahi2025deep}, contextualizing performance against standard models (VGG-16, ResNet-50, MobileNetV2).
+    \item \textbf{Critical Explainability Analysis}: We analyze Grad-CAM saliency maps across classes, noting foliar focus in moisture-deprived leaves while candidly identifying regional resolution limits and background perimeter attention in hydrated classes.
+\end{itemize}
+
+The remainder of this manuscript is organized as follows: Section~II reviews related work in agricultural phenotyping and compact CNNs. Section~III describes the dataset, preprocessing, model architecture, and Grad-CAM implementation. Section~IV presents empirical results, cross-validation, baseline comparisons, and interpretability analysis. Section~V concludes with limitations and directions for future research.
+
+---
+
+\section{Related Work}
+
+\subsection{Deep Learning for Plant Phenotyping and Stress Detection}
+Deep learning has been widely applied to automated agricultural sensing~\cite{kamilaris2018deep}. Mohanty et al.~\cite{mohanty2016using} demonstrated high-accuracy crop disease identification on 54,306 laboratory leaf images. Saleem et al.~\cite{saleem2019plant} evaluated multiple deep models for lesion classification, confirming that learned convolutional features outperform handcrafted descriptors.
+
+For water stress, Zhuang et al.~\cite{zhuang2018identification} applied CNNs to classify water deficiency in greenhouse crops using RGB imagery. More recently, Chandel et al.~\cite{chandel2021deep} and Li et al.~\cite{li2022high} surveyed computer vision methods for crop moisture assessment, emphasizing the need to progress from binary stress detection toward multi-stage deficit quantification capable of informing variable-rate drip irrigation.
+
+\subsection{Compact Neural Architectures in Agriculture}
+Deploying vision models directly into smart greenhouse controllers or agricultural robotics requires parameter and memory efficiency. MobileNet architectures~\cite{howard2017mobilenets, sandler2018mobilenetv2} introduced depthwise separable convolutions and inverted residuals, while GhostNet~\cite{han2020ghostnet} and EfficientNetV2~\cite{tan2021efficientnetv2} optimized feature generation efficiency. 
+
+In tomato water stress monitoring, Shahi et al.~\cite{shahi2025deep} recently proposed a pruned residual model evaluated on a 20,955-image dataset, demonstrating that custom-sized residual blocks outperform standard deep transfer learning architectures (e.g., MobileNetV2, ResNet-50) when trained for foliar stress diagnosis.
+
+\subsection{Explainable Artificial Intelligence (XAI)}
+Model interpretability is increasingly valued in applied machine learning~\cite{tjoa2020survey}. Selvaraju et al.~\cite{selvaraju2017grad} introduced Gradient-weighted Class Activation Mapping (Grad-CAM), which weights convolutional feature maps by their class gradients to highlight salient regions. In agricultural applications, Grad-CAM allows inspection of whether a model attends to foliar tissue or spurious photographic artifacts.
+
+---
+
+\section{Materials and Methodology}
+
+\subsection{Dataset Description}
+This study uses the benchmark \textit{Irrigation Management in Tomato Plants} dataset~\cite{figshare_dataset, shahi2025deep}, comprising 20,955 high-resolution RGB images of individual tomato leaves (\textit{Solanum lycopersicum}) photographed under controlled greenhouse conditions across four regulated soil Field Capacity (FC) treatments:
+\begin{enumerate}
+    \item \textbf{Low Irrigated (LI, 25\% FC)}: Severe deficit conditions causing moisture stress, visible in blade rolling and chlorosis (5,247 samples).
+    \item \textbf{Medium Irrigated (MI, 50\% FC)}: Moderate deficit where leaves maintain partial turgor with early structural curling (5,170 samples).
+    \item \textbf{Highly Irrigated (HI, 75\% FC)}: Near-optimal hydration with healthy posture and green pigmentation (5,108 samples).
+    \item \textbf{Fully Irrigated (FI, 100\% FC)}: Full field capacity saturation with expanded lamina (5,430 samples).
+\end{enumerate}
+
+Fig.~\ref{fig:dataset_dist} displays the sample distribution across the four categories.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.88\columnwidth]{figures/dataset_distribution.png}
+\caption{Sample distribution across the four irrigation categories (20,955 total samples).}
+\label{fig:dataset_dist}
+\end{figure}
+
+\begin{table}[htbp]
+\caption{Dataset Partitioning Strategy Across Irrigation Classes}
+\centering
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Class} & \textbf{Soil FC} & \textbf{Total} & \textbf{Train (70\%)} & \textbf{Test (30\%)} \\
+\midrule
+LI (Low Irrigated)     & 25\%  & 5,247  & 3,673  & 1,574 \\
+MI (Medium Irrigated)  & 50\%  & 5,170  & 3,619  & 1,551 \\
+HI (Highly Irrigated)  & 75\%  & 5,108  & 3,575  & 1,533 \\
+FI (Fully Irrigated)   & 100\% & 5,430  & 3,801  & 1,629 \\
+\midrule
+\textbf{Total}         & ---   & \textbf{20,955} & \textbf{14,668} & \textbf{6,287} \\
+\bottomrule
+\end{tabular}
+\label{tab:dataset_splits}
+\end{table}
+
+\subsection{Preprocessing and Augmentation}
+The 20,955 images were partitioned using a stratified 70\% training split (14,668 images) and a 30\% held-out test split (6,287 images), preserving class balances (Table~\ref{tab:dataset_splits}). An isolated 10\% carve-out of the training set (1,467 images) was utilized for validation during training.
+
+Images were resized to $224 \times 224 \times 3$ and normalized using ImageNet channel statistics ($\mu = [0.485, 0.456, 0.406]$, $\sigma = [0.229, 0.224, 0.225]$). During training, standard stochastic augmentations were applied:
+\begin{itemize}
+    \item Random horizontal and vertical flips ($p = 0.5$).
+    \item Random rotations within $[-\theta, +\theta]$ with $\theta = 15^\circ$.
+    \item Random resized cropping with scaling factors $[0.8, 1.0]$.
+    \item Color jittering (brightness and contrast variations within $\pm 10\%$).
+\end{itemize}
+
+\subsection{Network Architecture}
+Standard deep residual networks such as ResNet-50~\cite{he2016deep} employ three-layer bottleneck blocks ($1\times1$, $3\times3$, $1\times1$) scaling up to 2,048 feature channels, resulting in 23.59 million parameters. For individual leaf classification on uniform backgrounds, this parameter capacity is prone to redundancy.
+
+Our evaluated network, \textbf{LightResNet}, employs a compact 10-layer residual design structured into five primary stages:
+\begin{enumerate}
+    \item \textbf{Input Stage (Block-A)}: Two sequential $3 \times 3$ convolutions (stride 2) with Batch Normalization (BN)~\cite{ioffe2015batch} and ReLU activations, reducing the spatial resolution from $224 \times 224$ to $56 \times 56 \times 16$. A subsequent $2 \times 2$ MaxPool layer yields $28 \times 28 \times 16$.
+    \item \textbf{Residual Processing Stages (Blocks B--E)}: Four compact residual blocks (`Block-B' through `Block-E') with channel dimensions progressing through $16 \to 32 \to 64 \to 128 \to 256$.
+\end{enumerate}
+
+Each residual block processes an input tensor $x_l$ through two paths:
+\begin{itemize}
+    \item \textbf{Main Transformation Path}: Two consecutive $3 \times 3$ convolutional layers with Batch Normalization and ReLU activations:
+    \begin{equation}
+    \mathcal{F}(x_l) = \text{BN}_2\left(\text{Conv}_{3\times3}^{(2)}\left(\sigma\left(\text{BN}_1\left(\text{Conv}_{3\times3}^{(1)}(x_l)\right)\right)\right)\right),
+    \end{equation}
+    where $\sigma(\cdot)$ is the ReLU function.
+    \item \textbf{Shortcut Projection Path}: A $1 \times 1$ convolution paired with Batch Normalization to adjust channel dimensions:
+    \begin{equation}
+    \mathcal{S}(x_l) = \text{BN}_s\left(\text{Conv}_{1\times1}^{(s)}(x_l)\right).
+    \end{equation}
+\end{itemize}
+The paths are combined via element-wise addition:
+\begin{equation}
+x_{l+1} = \sigma\left(\mathcal{F}(x_l) + \mathcal{S}(x_l)\right).
+\end{equation}
+Downsampling between stages is handled by $2 \times 2$ MaxPool operations (and a $3 \times 3$ pool following Block-E).
+
+The classification head flattens the resulting 256-dimensional feature vector and projects it through two dense layers:
+\begin{equation}
+\hat{y} = W_2 \cdot \sigma\left(W_1 \cdot x_{\text{flat}} + b_1\right) + b_2,
+\end{equation}
+with $W_1 \in \mathbb{R}^{64 \times 256}$ and $W_2 \in \mathbb{R}^{4 \times 64}$.
+
+The detailed layer-by-layer parameter specification is presented in Table~\ref{tab:architecture}. The model comprises exactly \textbf{1,240,948 trainable parameters} ($\sim$4.98~MB), matching the architecture described by Shahi et al.~\cite{shahi2025deep}.
+
+\begin{table}[htbp]
+\caption{Layer-by-Layer Architectural Specifications of LightResNet}
+\centering
+\begin{tabular}{llcc}
+\toprule
+\textbf{Stage} & \textbf{Layer Operations} & \textbf{Output Shape} & \textbf{Params} \\
+\midrule
+Input & Image Input & $224 \times 224 \times 3$ & 0 \\
+\midrule
+\multirow{4}{*}{Block-A} & Conv2D ($3\times3$, s=2) & $112 \times 112 \times 16$ & 432 \\
+& BatchNorm2D & $112 \times 112 \times 16$ & 32 \\
+& Conv2D ($3\times3$, s=2) + BN + ReLU & $56 \times 56 \times 16$ & 2,336 \\
+& MaxPool ($2\times2$, s=2) & $28 \times 28 \times 16$ & 0 \\
+\midrule
+\multirow{2}{*}{Block-B} & Residual Block ($16 \to 32$) & $28 \times 28 \times 32$ & 14,528 \\
+& MaxPool ($2\times2$, s=2) & $14 \times 14 \times 32$ & 0 \\
+\midrule
+\multirow{2}{*}{Block-C} & Residual Block ($32 \to 64$) & $14 \times 14 \times 64$ & 57,664 \\
+& MaxPool ($2\times2$, s=2) & $7 \times 7 \times 64$ & 0 \\
+\midrule
+\multirow{2}{*}{Block-D} & Residual Block ($64 \to 128$) & $7 \times 7 \times 128$ & 230,144 \\
+& MaxPool ($2\times2$, s=2) & $3 \times 3 \times 128$ & 0 \\
+\midrule
+\multirow{2}{*}{Block-E} & Residual Block ($128 \to 256$) & $3 \times 3 \times 256$ & 919,040 \\
+& MaxPool ($3\times3$, s=3) & $1 \times 1 \times 256$ & 0 \\
+\midrule
+\multirow{3}{*}{Classifier} & Flatten & 256 & 0 \\
+& Linear ($256 \to 64$) + ReLU & 64 & 16,448 \\
+& Linear ($64 \to 4$) Logits & 4 & 260 \\
+\midrule
+\textbf{Total} & \multicolumn{2}{l}{\textbf{Trainable Parameters}} & \textbf{1,240,948} \\
+\bottomrule
+\end{tabular}
+\label{tab:architecture}
+\end{table}
+
+\subsection{Training Protocol and Optimization}
+Training was guided by standard Cross-Entropy Loss:
+\begin{equation}
+\mathcal{L}_{\text{CE}} = -\frac{1}{N}\sum_{i=1}^N \sum_{c=1}^C y_{i,c} \log \left(\frac{\exp(\hat{z}_{i,c})}{\sum_{j=1}^C \exp(\hat{z}_{i,j})}\right),
+\end{equation}
+where $N=64$ is the mini-batch size, $C=4$ classes, $y_{i,c} \in \{0, 1\}$ is the one-hot target, and $\hat{z}_{i,c}$ are the unnormalized model logits.
+
+Optimization was performed using Adam~\cite{kingma2014adam} with $\beta_1 = 0.9$, $\beta_2 = 0.999$, an initial learning rate $\eta = 10^{-4}$, and weight decay $10^{-4}$. An Early Stopping patience of 3 epochs on validation loss was used, with training concluding at epoch 8 when validation loss reached a plateau ($\sim$0.052).
+
+\subsection{Grad-CAM Formulation}
+To examine internal attention patterns, Grad-CAM~\cite{selvaraju2017grad} was applied to the final convolutional layer of Block-E. Let $A^k \in \mathbb{R}^{U \times V}$ denote the $k$-th feature map ($U=3, V=3$), and $Y^c$ the logit score for class $c$. Neuron importance weights $\alpha_k^c$ are computed as:
+\begin{equation}
+\alpha_k^c = \frac{1}{Z}\sum_{i=1}^U \sum_{j=1}^V \frac{\partial Y^c}{\partial A_{i,j}^k},
+\end{equation}
+where $Z = U \times V$. The localization heatmap is generated as:
+\begin{equation}
+L_{\text{Grad-CAM}}^c = \text{ReLU}\left(\sum_k \alpha_k^c A^k\right),
+\end{equation}
+which is subsequently upsampled to $224 \times 224$ and overlaid onto the original image.
+
+---
+
+\section{Experimental Results and Discussion}
+
+\subsection{Training Convergence}
+Experiments were executed in PyTorch 2.12 with GPU acceleration (MPS / CUDA). Fig.~\ref{fig:training_history} displays the loss and metric progression over training.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.98\columnwidth]{figures/training_history.png}
+\caption{Training progression: (a) Loss trajectory, and (b) validation metrics across training epochs.}
+\label{fig:training_history}
+\end{figure}
+
+The model converged smoothly, with training loss declining from 0.471 to 0.048 and validation accuracy reaching 98.91\% at epoch 8 before early stopping concluded the run. Total training time across 13,201 training images was approximately 3.5 minutes.
+
+\subsection{Classification Performance on Held-Out Test Set}
+The saved model checkpoint was evaluated once on the independent test split of 6,287 images. Performance was measured using Accuracy, Macro Precision, Macro Recall, Macro F1-Score, Cohen's Kappa ($\kappa$)~\cite{cohen1960coefficient}, Mean Absolute Error (MAE), and Quadratic Weighted Kappa (QWK), as reported in Table~\ref{tab:overall_metrics}.
+
+\begin{table}[htbp]
+\caption{Overall Performance Metrics on 6,287 Unseen Test Samples}
+\centering
+\begin{tabular}{lc}
+\toprule
+\textbf{Evaluation Metric} & \textbf{Value} \\
+\midrule
+Overall Test Accuracy       & \textbf{99.27\%} (6,241 / 6,287) \\
+Macro-Averaged Precision    & \textbf{99.27\%} \\
+Macro-Averaged Recall       & \textbf{99.26\%} \\
+Macro-Averaged F1-Score     & \textbf{99.26\%} \\
+Cohen's Kappa ($\kappa$)    & \textbf{0.9902} \\
+Mean Absolute Error (MAE)   & \textbf{0.0073 class levels} \\
+Quadratic Weighted Kappa    & \textbf{0.9935} \\
+\bottomrule
+\end{tabular}
+\label{tab:overall_metrics}
+\end{table}
+
+Because irrigation stress classes follow a continuous ordinal order ($\text{LI} \to \text{MI} \to \text{HI} \to \text{FI}$), MAE and Quadratic Weighted Kappa quantify the magnitude of prediction errors. An MAE of 0.0073 indicates that fewer than 1 in 130 predictions deviated from ground truth, and those deviations were confined to adjacent stress states.
+
+\subsection{Per-Class Evaluation and Confusion Matrix}
+Table~\ref{tab:per_class} and Fig.~\ref{fig:class_metrics} provide the class-specific breakdown.
+
+\begin{table}[htbp]
+\caption{Detailed Per-Class Performance Breakdown on the Test Set}
+\centering
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Irrigation Regime} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-Score} & \textbf{Support} \\
+\midrule
+Low Irrigated (LI, 25\%)     & 98.31\% & 99.68\% & 98.99\% & 1,574 \\
+Medium Irrigated (MI, 50\%)  & 99.09\% & 98.19\% & 98.64\% & 1,551 \\
+Highly Irrigated (HI, 75\%)  & 99.67\% & 99.41\% & 99.54\% & 1,533 \\
+Fully Irrigated (FI, 100\%)  & 100.00\% & 99.75\% & 99.88\% & 1,629 \\
+\midrule
+\textbf{Macro Average}       & \textbf{99.27\%} & \textbf{99.26\%} & \textbf{99.26\%} & \textbf{6,287} \\
+\bottomrule
+\end{tabular}
+\label{tab:per_class}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.88\columnwidth]{figures/class_metrics.png}
+\caption{Per-class Precision, Recall, and F1-score across all four irrigation regimes.}
+\label{fig:class_metrics}
+\end{figure}
+
+Precision for the fully irrigated class (FI) reached 100.00\% (1,625/1,625), reflecting clear foliar expansion and turgidity. The test confusion matrix is shown in Fig.~\ref{fig:confusion_matrix}.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.88\columnwidth]{figures/confusion_matrix.png}
+\caption{Confusion matrix evaluated on the 6,287 unseen test samples.}
+\label{fig:confusion_matrix}
+\end{figure}
+
+Of the 46 total misclassifications across 6,287 test samples:
+\begin{itemize}
+    \item 27 MI samples were predicted as LI, and 5 LI samples were predicted as MI.
+    \item 9 HI samples were predicted as MI, and 1 MI sample was predicted as HI.
+    \item 4 FI samples were predicted as HI, and 0 HI samples were predicted as FI.
+\end{itemize}
+All 46 errors occurred between adjacent moisture levels; there were zero errors between non-adjacent categories (e.g., LI vs. HI or LI vs. FI).
+
+\subsection{5-Fold Cross-Validation}
+To assess stability across different data partitions, a 5-fold cross-validation was conducted across the 20,955 images (80\% train, 20\% validation per fold).
+
+\begin{table}[htbp]
+\caption{5-Fold Cross-Validation Performance of LightResNet}
+\centering
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Fold} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-Score} & \textbf{Kappa ($\kappa$)} \\
+\midrule
+Fold 1 & 99.12\% & 99.13\% & 99.11\% & 99.12\% & 0.9883 \\
+Fold 2 & 98.45\% & 98.47\% & 98.44\% & 98.45\% & 0.9793 \\
+Fold 3 & 99.02\% & 99.01\% & 99.03\% & 99.02\% & 0.9869 \\
+Fold 4 & 97.64\% & 97.66\% & 97.61\% & 97.63\% & 0.9685 \\
+Fold 5 & 99.52\% & 99.50\% & 99.52\% & 99.51\% & 0.9936 \\
+\midrule
+\textbf{Mean} & \textbf{98.75\%} & \textbf{98.75\%} & \textbf{98.74\%} & \textbf{98.74\%} & \textbf{0.9833} \\
+\textbf{Sample Std} & $\pm$ \textbf{0.73\%} & $\pm$ \textbf{0.73\%} & $\pm$ \textbf{0.74\%} & $\pm$ \textbf{0.74\%} & $\pm$ \textbf{0.0098} \\
+\bottomrule
+\end{tabular}
+\label{tab:cross_validation}
+\end{table}
+
+The mean accuracy across folds was \textbf{98.75\% $\pm$ 0.73\%} with a mean Cohen's Kappa of \textbf{0.9833 $\pm$ 0.0098} (Table~\ref{tab:cross_validation}). The standard deviation under 0.75\% indicates consistent convergence across splits.
+
+\subsection{Comparison with Published Baselines on this Dataset}
+To place these results in context, Table~\ref{tab:comparison} compares LightResNet with baseline architectures evaluated directly on this same 20,955-image dataset by Shahi et al.~\cite{shahi2025deep}.
+
+\begin{table}[htbp]
+\caption{Performance and Complexity Comparison with Published Baselines on the Figshare Tomato Dataset~\cite{shahi2025deep}}
+\centering
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Model} & \textbf{Parameters} & \textbf{GFLOPs} & \textbf{Accuracy} & \textbf{Source} \\
+\midrule
+MobileNetV2~\cite{sandler2018mobilenetv2} & 2.26M  & 0.59 & 70.52\% & Shahi et al.~\cite{shahi2025deep} \\
+NASNet-Mobile~\cite{howard2017mobilenets} & 4.23M  & 1.13 & 70.10\% & Shahi et al.~\cite{shahi2025deep} \\
+MobileNet~\cite{howard2017mobilenets}     & 3.23M  & 1.14 & 82.52\% & Shahi et al.~\cite{shahi2025deep} \\
+DenseNet-121                              & 6.95M  & 5.67 & 84.07\% & Shahi et al.~\cite{shahi2025deep} \\
+VGG-16~\cite{simonyan2014very}            & 14.71M & 30.70 & 84.98\% & Shahi et al.~\cite{shahi2025deep} \\
+ResNet-50~\cite{he2016deep}               & 23.59M & 7.72 & 91.93\% & Shahi et al.~\cite{shahi2025deep} \\
+Shahi et al. CNN~\cite{shahi2025deep}     & 1.24M  & 0.11 & 98.90\% & Shahi et al.~\cite{shahi2025deep} \\
+\midrule
+\textbf{LightResNet (Ours)}               & \textbf{1.24M} & \textbf{0.109} & \textbf{99.27\%} & This Study \\
+\bottomrule
+\end{tabular}
+\label{tab:comparison}
+\end{table}
+
+As demonstrated in prior benchmarks on this dataset, large pre-trained transfer learning architectures (e.g., standard ResNet-50, VGG-16) require substantially more computational operations (7.72 to 30.70 GFLOPs) yet achieve lower task-specific accuracy (84.98\% to 91.93\%) than customized compact residual models. LightResNet maintains the compact 1.24M parameter footprint with 0.109~GFLOPs, while attaining 99.27\% test accuracy.
+
+\subsection{Efficiency Benchmarking}
+To provide empirical edge-viability data, we benchmarked single-image inference latency on standard hardware:
+\begin{itemize}
+    \item \textbf{Parameters}: 1,240,948 ($\sim$4.98~MB FP32 weight file).
+    \item \textbf{FLOPs}: 109,273,600 FLOPs (0.109~GFLOPs).
+    \item \textbf{CPU Latency}: 1.66~ms per image (Intel/Apple standard CPU core), corresponding to a theoretical throughput of $\sim$600 frames per second (FPS).
+\end{itemize}
+This low latency indicates suitability for integration into edge single-board computers (such as Raspberry Pi 4 or NVIDIA Jetson Nano) for greenhouse sensing carts or robotic arms without requiring mandatory weight quantization.
+
+\subsection{Explainability Analysis via Grad-CAM}
+Fig.~\ref{fig:gradcam} presents Grad-CAM saliency heatmaps across representative test samples from each irrigation class.
+
+\begin{figure*}[htbp]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/gradcam_results.png}
+\caption{Grad-CAM heatmaps overlay on representative tomato leaf test samples across the four irrigation categories. Warm colors (red, yellow) denote highest convolutional gradient activation.}
+\label{fig:gradcam}
+\end{figure*}
+
+Inspection of the attention maps reveals distinct characteristics across stress regimes:
+\begin{itemize}
+    \item \textbf{Low Irrigated (LI, 25\% FC)}: Attention concentrates primarily on the \textbf{curled leaf margins and lamina tips}, corresponding to areas exhibiting drought-induced leaf rolling and moisture loss.
+    \item \textbf{Medium Irrigated (MI, 50\% FC)}: Activations focus along the \textbf{central leaf blade and main venation}, capturing early structural wilt prior to severe blade contraction.
+    \item \textbf{Highly Irrigated (HI, 75\% FC) and Fully Irrigated (FI, 100\% FC)}: Attention is more broadly distributed across the expanded lamina. Notably, some activation spreads into the background perimeter around leaf contours.
+\end{itemize}
+
+\noindent\textbf{Critical Discussion of XAI Limitations}:
+While Grad-CAM confirms that the model focuses on foliar features in stressed leaves, several caveats must be highlighted:
+\begin{enumerate}
+    \item \textbf{Spatial Resolution}: The final feature map in Block-E is $3 \times 3$. Upsampling a $3 \times 3$ grid to $224 \times 224$ produces regional localization rather than fine vein-level tracing.
+    \item \textbf{Background Activation in Hydrated Classes}: In HI and FI samples, attention heatmaps show activation along the leaf-background boundary. In the absence of localized stress lesions, the network relies on overall leaf contour and area.
+    \item \textbf{Confounding Stress Factors}: Foliar chlorosis and margin necrosis can also arise from nutrient deficiencies (e.g., nitrogen or potassium deficiency) or viral pathogens. In unconstrained field conditions, vision-based models should be paired with ambient telemetry (temperature, relative humidity) to disambiguate water stress from pathological chlorosis.
+\end{enumerate}
+
+---
+
+\section{Limitations and Future Work}
+
+\subsection{Dataset and Environmental Limitations}
+A key methodological consideration is that the benchmark dataset consists of individual leaves photographed against plain backdrops under controlled greenhouse conditions. In real agricultural production, leaves remain attached to canopies with overlapping foliage, complex background soil, variable weed cover, and fluctuating solar angles. Furthermore, the public dataset uses an image-level split; if individual plants contributed multiple leaf images, some session correlation may persist across train/test splits.
+
+\subsection{Future Directions}
+Future investigations will focus on:
+\begin{enumerate}
+    \item Evaluating in-situ canopy images captured directly within commercial greenhouse rows under natural lighting.
+    \item Cross-cultivar and multi-crop transfer learning across solanaceous species (e.g., sweet pepper, eggplant).
+    \item Hardware deployment on Raspberry Pi 4 with TensorRT/ONNX runtime optimization paired with automated variable-rate drip valves.
+    \item Multi-modal integration combining RGB imagery with microclimate sensors (temperature, vapor pressure deficit) to improve open-field reliability.
+\end{enumerate}
+
+---
+
+\section{Conclusion}
+This paper presented an empirical evaluation of \textbf{LightResNet}, a compact 10-layer residual convolutional neural network for 4-class tomato leaf water stress detection. By using modified basic residual blocks with $1 \times 1$ projection shortcuts, the model achieves a 94.7\% reduction in parameters (1.24M parameters, 4.98~MB footprint) with 0.109~GFLOPs and an average CPU inference latency of 1.66~ms. Evaluated on 20,955 images, the model achieved 99.27\% test accuracy, 0.9902 Cohen's Kappa, an MAE of 0.0073 class levels, and a 5-fold cross-validation mean of $98.75\% \pm 0.73\%$, outperforming standard transfer learning baselines. Grad-CAM analysis confirmed foliar focus in drought-stressed leaves while clarifying regional resolution boundaries. The compact architecture represents a practical step toward real-time vision-based irrigation management.
+
+\section*{Data and Code Availability}
+The dataset is publicly available on Figshare (DOI: \url{10.6084/m9.figshare.22297915}). The PyTorch implementation and trained checkpoints are available at: \url{https://github.com/rohitt2008/SmartIrrigation-Vision}.
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

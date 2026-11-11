@@ -1,12 +1,20 @@
 === Tomato Irrigation Status Model - Evaluation Report ===
-Accuracy:      99.30%
-Precision (Macro): 99.30%
-Recall (Macro):    99.29%
-F1-Score (Macro):  99.29%
-Cohen's Kappa:     0.9907
+Accuracy:          99.27% (6241 / 6287)
+Precision (Macro): 99.27%
+Recall (Macro):    99.26%
+F1-Score (Macro):  99.26%
+Cohen's Kappa:     0.9902
+Mean Absolute Error (MAE): 0.0073 class levels
+Quadratic Weighted Kappa:  0.9935
 
 Confusion Matrix:
 [[1569    5    0    0]
- [  26 1524    1    0]
- [   0    8 1525    0]
+ [  27 1523    1    0]
+ [   0    9 1524    0]
  [   0    0    4 1625]]
+
+Per-Class Classification Report:
+Class LI (25% FC):  Precision 98.31%, Recall 99.68%, F1 98.99% (Support: 1574)
+Class MI (50% FC):  Precision 99.09%, Recall 98.19%, F1 98.64% (Support: 1551)
+Class HI (75% FC):  Precision 99.67%, Recall 99.41%, F1 99.54% (Support: 1533)
+Class FI (100% FC): Precision 100.00%, Recall 99.75%, F1 99.88% (Support: 1629)
