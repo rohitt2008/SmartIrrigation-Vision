@@ -101,7 +101,9 @@ Fig.~\ref{fig:dataset_dist} displays the sample distribution across the four cat
 
 \begin{table}[htbp]
 \caption{Dataset Partitioning Strategy Across Irrigation Classes}
+\label{tab:dataset_splits}
 \centering
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{lcccc}
 \toprule
 \textbf{Class} & \textbf{Soil FC} & \textbf{Total} & \textbf{Train (70\%)} & \textbf{Test (30\%)} \\
@@ -113,8 +115,8 @@ FI (Fully Irrigated)   & 100\% & 5,430  & 3,801  & 1,629 \\
 \midrule
 \textbf{Total}         & ---   & \textbf{20,955} & \textbf{14,668} & \textbf{6,287} \\
 \bottomrule
-\end{tabular}
-\label{tab:dataset_splits}
+\end{tabular}%
+}
 \end{table}
 
 \subsection{Preprocessing and Augmentation}
@@ -165,16 +167,17 @@ The detailed layer-by-layer parameter specification is presented in Table~\ref{t
 
 \begin{table}[htbp]
 \caption{Layer-by-Layer Architectural Specifications of LightResNet}
+\label{tab:architecture}
 \centering
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{llcc}
 \toprule
 \textbf{Stage} & \textbf{Layer Operations} & \textbf{Output Shape} & \textbf{Params} \\
 \midrule
 Input & Image Input & $224 \times 224 \times 3$ & 0 \\
 \midrule
-\multirow{4}{*}{Block-A} & Conv2D ($3\times3$, s=2) & $112 \times 112 \times 16$ & 432 \\
-& BatchNorm2D & $112 \times 112 \times 16$ & 32 \\
-& Conv2D ($3\times3$, s=2) + BN + ReLU & $56 \times 56 \times 16$ & 2,336 \\
+\multirow{3}{*}{Block-A} & Conv ($3\times3$, s=2) + BN & $112 \times 112 \times 16$ & 464 \\
+& Conv ($3\times3$, s=2) + BN + ReLU & $56 \times 56 \times 16$ & 2,336 \\
 & MaxPool ($2\times2$, s=2) & $28 \times 28 \times 16$ & 0 \\
 \midrule
 \multirow{2}{*}{Block-B} & Residual Block ($16 \to 32$) & $28 \times 28 \times 32$ & 14,528 \\
@@ -189,14 +192,13 @@ Input & Image Input & $224 \times 224 \times 3$ & 0 \\
 \multirow{2}{*}{Block-E} & Residual Block ($128 \to 256$) & $3 \times 3 \times 256$ & 919,040 \\
 & MaxPool ($3\times3$, s=3) & $1 \times 1 \times 256$ & 0 \\
 \midrule
-\multirow{3}{*}{Classifier} & Flatten & 256 & 0 \\
-& Linear ($256 \to 64$) + ReLU & 64 & 16,448 \\
+\multirow{2}{*}{Classifier} & Flatten + Linear ($256 \to 64$) + ReLU & 64 & 16,448 \\
 & Linear ($64 \to 4$) Logits & 4 & 260 \\
 \midrule
 \textbf{Total} & \multicolumn{2}{l}{\textbf{Trainable Parameters}} & \textbf{1,240,948} \\
 \bottomrule
-\end{tabular}
-\label{tab:architecture}
+\end{tabular}%
+}
 \end{table}
 
 \subsection{Training Protocol and Optimization}
@@ -240,7 +242,9 @@ The saved model checkpoint was evaluated once on the independent test split of 6
 
 \begin{table}[htbp]
 \caption{Overall Performance Metrics on 6,287 Unseen Test Samples}
+\label{tab:overall_metrics}
 \centering
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{lc}
 \toprule
 \textbf{Evaluation Metric} & \textbf{Value} \\
@@ -253,8 +257,8 @@ Cohen's Kappa ($\kappa$)    & \textbf{0.9902} \\
 Mean Absolute Error (MAE)   & \textbf{0.0073 class levels} \\
 Quadratic Weighted Kappa    & \textbf{0.9935} \\
 \bottomrule
-\end{tabular}
-\label{tab:overall_metrics}
+\end{tabular}%
+}
 \end{table}
 
 Because irrigation stress classes follow a continuous ordinal order ($\text{LI} \to \text{MI} \to \text{HI} \to \text{FI}$), MAE and Quadratic Weighted Kappa quantify the magnitude of prediction errors. An MAE of 0.0073 indicates that fewer than 1 in 130 predictions deviated from ground truth, and those deviations were confined to adjacent stress states.
@@ -264,20 +268,22 @@ Table~\ref{tab:per_class} and Fig.~\ref{fig:class_metrics} provide the class-spe
 
 \begin{table}[htbp]
 \caption{Detailed Per-Class Performance Breakdown on the Test Set}
+\label{tab:per_class}
 \centering
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{lcccc}
 \toprule
-\textbf{Irrigation Regime} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-Score} & \textbf{Support} \\
+\textbf{Class (Soil FC)} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-Score} & \textbf{Support} \\
 \midrule
-Low Irrigated (LI, 25\%)     & 98.31\% & 99.68\% & 98.99\% & 1,574 \\
-Medium Irrigated (MI, 50\%)  & 99.09\% & 98.19\% & 98.64\% & 1,551 \\
-Highly Irrigated (HI, 75\%)  & 99.67\% & 99.41\% & 99.54\% & 1,533 \\
-Fully Irrigated (FI, 100\%)  & 100.00\% & 99.75\% & 99.88\% & 1,629 \\
+LI (25\% FC)     & 98.31\% & 99.68\% & 98.99\% & 1,574 \\
+MI (50\% FC)     & 99.09\% & 98.19\% & 98.64\% & 1,551 \\
+HI (75\% FC)     & 99.67\% & 99.41\% & 99.54\% & 1,533 \\
+FI (100\% FC)    & 100.00\% & 99.75\% & 99.88\% & 1,629 \\
 \midrule
 \textbf{Macro Average}       & \textbf{99.27\%} & \textbf{99.26\%} & \textbf{99.26\%} & \textbf{6,287} \\
 \bottomrule
-\end{tabular}
-\label{tab:per_class}
+\end{tabular}%
+}
 \end{table}
 
 \begin{figure}[htbp]
@@ -309,7 +315,9 @@ To assess stability across different data partitions, a 5-fold cross-validation 
 
 \begin{table}[htbp]
 \caption{5-Fold Cross-Validation Performance of LightResNet}
+\label{tab:cross_validation}
 \centering
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{lccccc}
 \toprule
 \textbf{Fold} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-Score} & \textbf{Kappa ($\kappa$)} \\
@@ -323,8 +331,8 @@ Fold 5 & 99.52\% & 99.50\% & 99.52\% & 99.51\% & 0.9936 \\
 \textbf{Mean} & \textbf{98.75\%} & \textbf{98.75\%} & \textbf{98.74\%} & \textbf{98.74\%} & \textbf{0.9833} \\
 \textbf{Sample Std} & $\pm$ \textbf{0.73\%} & $\pm$ \textbf{0.73\%} & $\pm$ \textbf{0.74\%} & $\pm$ \textbf{0.74\%} & $\pm$ \textbf{0.0098} \\
 \bottomrule
-\end{tabular}
-\label{tab:cross_validation}
+\end{tabular}%
+}
 \end{table}
 
 The mean accuracy across folds was \textbf{98.75\% $\pm$ 0.73\%} with a mean Cohen's Kappa of \textbf{0.9833 $\pm$ 0.0098} (Table~\ref{tab:cross_validation}). The standard deviation under 0.75\% indicates consistent convergence across splits.
@@ -333,24 +341,27 @@ The mean accuracy across folds was \textbf{98.75\% $\pm$ 0.73\%} with a mean Coh
 To place these results in context, Table~\ref{tab:comparison} compares LightResNet with baseline architectures evaluated directly on this same 20,955-image dataset by Shahi et al.~\cite{shahi2025deep}.
 
 \begin{table}[htbp]
-\caption{Performance and Complexity Comparison with Published Baselines on the Figshare Tomato Dataset~\cite{shahi2025deep}}
-\centering
-\begin{tabular}{lcccc}
-\toprule
-\textbf{Model} & \textbf{Parameters} & \textbf{GFLOPs} & \textbf{Accuracy} & \textbf{Source} \\
-\midrule
-MobileNetV2~\cite{sandler2018mobilenetv2} & 2.26M  & 0.59 & 70.52\% & Shahi et al.~\cite{shahi2025deep} \\
-NASNet-Mobile~\cite{howard2017mobilenets} & 4.23M  & 1.13 & 70.10\% & Shahi et al.~\cite{shahi2025deep} \\
-MobileNet~\cite{howard2017mobilenets}     & 3.23M  & 1.14 & 82.52\% & Shahi et al.~\cite{shahi2025deep} \\
-DenseNet-121                              & 6.95M  & 5.67 & 84.07\% & Shahi et al.~\cite{shahi2025deep} \\
-VGG-16~\cite{simonyan2014very}            & 14.71M & 30.70 & 84.98\% & Shahi et al.~\cite{shahi2025deep} \\
-ResNet-50~\cite{he2016deep}               & 23.59M & 7.72 & 91.93\% & Shahi et al.~\cite{shahi2025deep} \\
-Shahi et al. CNN~\cite{shahi2025deep}     & 1.24M  & 0.11 & 98.90\% & Shahi et al.~\cite{shahi2025deep} \\
-\midrule
-\textbf{LightResNet (Ours)}               & \textbf{1.24M} & \textbf{0.109} & \textbf{99.27\%} & This Study \\
-\bottomrule
-\end{tabular}
+\caption{Comparison with Published Baselines on the Figshare Tomato Dataset~\cite{shahi2025deep}}
 \label{tab:comparison}
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lccc}
+\toprule
+\textbf{Architecture} & \textbf{Parameters} & \textbf{GFLOPs} & \textbf{Accuracy} \\
+\midrule
+MobileNetV2~\cite{sandler2018mobilenetv2}* & 2.26M  & 0.59 & 70.52\% \\
+NASNet-Mobile~\cite{howard2017mobilenets}* & 4.23M  & 1.13 & 70.10\% \\
+MobileNet~\cite{howard2017mobilenets}*     & 3.23M  & 1.14 & 82.52\% \\
+DenseNet-121*                              & 6.95M  & 5.67 & 84.07\% \\
+VGG-16~\cite{simonyan2014very}*            & 14.71M & 30.70 & 84.98\% \\
+ResNet-50~\cite{he2016deep}*               & 23.59M & 7.72 & 91.93\% \\
+Shahi et al. CNN~\cite{shahi2025deep}      & 1.24M  & 0.11 & 98.90\% \\
+\midrule
+\textbf{LightResNet (Ours)}               & \textbf{1.24M} & \textbf{0.109} & \textbf{99.27\%} \\
+\bottomrule
+\multicolumn{4}{l}{\footnotesize *Evaluated and reported by Shahi et al.~\cite{shahi2025deep} on this dataset.}
+\end{tabular}%
+}
 \end{table}
 
 As demonstrated in prior benchmarks on this dataset, large pre-trained transfer learning architectures (e.g., standard ResNet-50, VGG-16) require substantially more computational operations (7.72 to 30.70 GFLOPs) yet achieve lower task-specific accuracy (84.98\% to 91.93\%) than customized compact residual models. LightResNet maintains the compact 1.24M parameter footprint with 0.109~GFLOPs, while attaining 99.27\% test accuracy.
